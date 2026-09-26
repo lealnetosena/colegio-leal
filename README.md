@@ -11,14 +11,13 @@ Stack: Apache Camel, Kafka (self-hosted, via Docker), MongoDB, banco relacional.
 | Repositório | Papel |
 |---|---|
 | [`colegio-leal`](.) | Este repo: visão geral, diagramas |
-| [`legado-colegio-leal`](../legado-colegio-leal) | Sistema legado (matrícula, mensalidade, monolito + relacional) |
-| [`consumer-fiscal-pdf`](../consumer-fiscal-pdf) | Gera o comprovante em PDF para declaração de IR |
-| [`consumer-notif-site`](../consumer-notif-site) | Notificação: portal do site |
-| [`consumer-notif-app`](../consumer-notif-app) | Notificação: push no app |
-| [`consumer-notif-whatsapp`](../consumer-notif-whatsapp) | Notificação: bot de WhatsApp |
-| [`consumer-notif-telegram`](../consumer-notif-telegram) | Notificação: bot de Telegram |
+| [`legado-colegio-leal`](https://github.com/lealnetosena/legado-colegio-leal) | Sistema legado (matrícula, mensalidade, monolito + relacional) |
+| [`consumer-fiscal-pdf`](https://github.com/lealnetosena/consumer-fiscal-pdf) | Gera o comprovante em PDF para declaração de IR |
+| [`consumer-notif-site`](https://github.com/lealnetosena/consumer-notif-site) | Notificação: portal do site |
+| [`consumer-notif-app`](https://github.com/lealnetosena/consumer-notif-app) | Notificação: push no app |
+| [`consumer-notif-whatsapp`](https://github.com/lealnetosena/consumer-notif-whatsapp) | Notificação: bot de WhatsApp |
+| [`consumer-notif-telegram`](https://github.com/lealnetosena/consumer-notif-telegram) | Notificação: bot de Telegram |
 
-> URLs reais do GitHub entram aqui assim que os repositórios forem publicados.
 
 ## Posts da série
 
