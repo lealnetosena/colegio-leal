@@ -27,7 +27,7 @@ flowchart LR
 | **CDC (Debezium)** | Observa o legado (log de transação), dispara o evento sozinho, sem tocar em código | Gatilho autônomo |
 | **Kafka** | Transporta o sinal `fatura.pronta`, de 2 origens (legado próprio + escola adquirida) | Backbone do desacoplamento |
 | **Consumers de Processamento** | N instâncias, cada uma chama a mesma procedure do legado, mas 1 aluno por vez, em paralelo — não é mais um laço só, serial | **P1b** (fim do RBAR como gargalo) |
-| **Materialized View** | Guarda o boleto/PIX já pronto | **P2** (site nunca mais recalcula na hora) |
+| **Materialized View** | Guarda o boleto/PIX já pronto | **P2** (site nunca mais aciona a procedure/tabela grande na hora) |
 | **App / WhatsApp** | Só leem a Materialized View — chegam de graça, sem tocar em nada existente | **P3** |
 | **Anti-Corruption Layer** | Traduz o formato da escola adquirida pro mesmo evento `fatura.pronta` | **P4** |
 
