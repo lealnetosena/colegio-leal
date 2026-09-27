@@ -1,0 +1,6 @@
+# Arquivos temporários do draw.io (lock/backup enquanto o arquivo está aberto)
+.$*.dtmp
+.~lock.*
+
+# Rascunhos pessoais (nunca versionar sem pedido explícito)
+posts/*-minhaversao.md
