@@ -1,5 +1,8 @@
 # Arquitetura atual (síncrona) — Faculdade Leal
 
+> Substituído por [`02-fluxo-atual-real.md`](02-fluxo-atual-real.md) (versão mais
+> realista). Mantido só como histórico.
+
 Contexto: 3.000 alunos matriculados, mensalidade vencendo todo dia 5.
 
 ## Visão estrutural — quem fala com quem
