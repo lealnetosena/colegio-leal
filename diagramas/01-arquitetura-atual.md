@@ -1,62 +1,165 @@
-# Arquitetura atual (síncrona) — Faculdade Leal
+# Arquitetura atual (a problemática) — Faculdade Leal
 
-> Substituído por [`02-fluxo-atual-real.md`](02-fluxo-atual-real.md) (versão mais
-> realista). Mantido só como histórico.
+Como o faturamento funciona **hoje**, antes da EDA. Os problemas P1 a P4 estão
+marcados nos pontos onde nascem. A arquitetura com eventos (a proposta) virá em
+`02-arquitetura-proposta.md`.
 
-Contexto: 3.000 alunos matriculados, mensalidade vencendo todo dia 5.
+> Rascunho de referência pra você redesenhar no draw.io. As premissas abaixo são
+> do case (fictício): ajuste conforme a realidade que você viu, sem citar nomes.
 
-## Visão estrutural — quem fala com quem
+## Os 4 problemas escolhidos (P1 a P4)
+| # | Problema do aluno / da faculdade | Benefício da EDA que resolve |
+|---|---|---|
+| P1 | O faturamento não fecha em 1 dia | Escala e paralelismo |
+| P2 | A nota fiscal (prefeitura) trava todo o resto | Isolamento de falha |
+| P3 | Paguei o PIX e continua "em aberto" | Reação em tempo real (evento em vez de lote) |
+| P4 | Ajustaram minha matrícula, mas boleto, nota e app seguem velhos | Propagação de mudança |
+
+## 1. Visão estrutural — quem fala com quem
 
 ```mermaid
 flowchart LR
-    subgraph Legado["Sistema Acadêmico e Financeiro (legado)"]
-        Job["Job de Faturamento<br/>(processa aluno por aluno, em sequência)"]
+    subgraph OPS["Operação"]
+        SEC["Secretaria / Financeiro<br/>ajustes manuais"]
     end
 
-    Job -->|"1 síncrono"| Pag[Gateway de Pagamento]
-    Job -->|"2 síncrono"| NFSe[Prefeitura: emissão de NFS-e]
-    Job -->|"3 síncrono"| Site[Portal do Site]
-    Job -->|"4 síncrono"| App[App da Faculdade]
-    Job -->|"5 síncrono"| WA[WhatsApp Business API]
-    Job -->|"6 síncrono"| TG[Telegram Bot API]
+    subgraph LEG["Sistema legado (monolito)"]
+        ACAD["Acadêmico<br/>matérias, dependências,<br/>serviços solicitados"]
+        CALC["Cálculo da mensalidade"]
+        JOB["Job de faturamento<br/>aluno por aluno, em sequência"]
+        CONC["Job de conciliação<br/>consulta em lote"]
+        DB[("Banco relacional")]
+    end
 
-    style Job fill:#f96,stroke:#333
+    subgraph EXT["Terceiros (fora do nosso controle)"]
+        BANCO["Banco<br/>boleto e retorno"]
+        PSP["PSP<br/>PIX"]
+        CARD["Gateway de cartão"]
+        PREF["Prefeitura<br/>NFS-e"]
+        AVISOS["Avisos<br/>push, WhatsApp, Telegram"]
+    end
+
+    subgraph CH["O que o aluno usa"]
+        PORTAL["Portal (site)"]
+        APP["App"]
+        BOT["Chatbot"]
+    end
+
+    SEC -->|"trancamento, taxa"| ACAD
+    ACAD --> CALC
+    CALC --> JOB
+    JOB -->|"grava"| DB
+
+    JOB -->|"1 boleto"| BANCO
+    JOB -->|"2 PIX"| PSP
+    JOB -->|"3 cartão"| CARD
+    JOB -->|"4 nota fiscal"| PREF
+    JOB -->|"5 avisos"| AVISOS
+
+    CONC -.->|"consulta a cada poucas horas"| BANCO
+    CONC -.->|"consulta a cada poucas horas"| PSP
+    CONC -->|"dá baixa"| DB
+
+    DB -->|"lido direto"| PORTAL
+    PORTAL -->|"API"| APP
+    PORTAL -->|"API"| BOT
+    AVISOS --> APP
+    AVISOS --> BOT
+
+    P1{{"P1 · Não fecha em 1 dia"}}
+    P2{{"P2 · Nota fiscal trava o resto"}}
+    P3{{"P3 · PIX pago, ainda em aberto"}}
+    P4{{"P4 · Correção não se espalha"}}
+    P1 -.-> JOB
+    P2 -.-> PREF
+    P3 -.-> CONC
+    P4 -.-> SEC
+
+    classDef prob fill:#ffe3e3,stroke:#d33,color:#900
+    class P1,P2,P3,P4 prob
 ```
 
-## Visão temporal — por que trava
+As setas numeradas (1 a 5) são chamadas **síncronas, em sequência**, feitas pelo job,
+aluno por aluno. As pontilhadas da conciliação são consultas em lote, a cada poucas
+horas — é por isso que o PIX pago demora a aparecer (P3).
+
+## 2. Visão temporal — a virada de mês (P1 e P2)
 
 ```mermaid
 sequenceDiagram
-    participant Job as Job de Faturamento
-    participant Pag as Gateway de Pagamento
-    participant NFSe as Prefeitura (NFS-e)
-    participant Site as Site
-    participant App as App
-    participant WA as WhatsApp
-    participant TG as Telegram
+    autonumber
+    participant J as Job de faturamento
+    participant B as Banco (boleto)
+    participant X as PSP (PIX)
+    participant C as Gateway (cartão)
+    participant P as Prefeitura (NFS-e)
+    participant N as Avisos (push, WhatsApp, Telegram)
 
     loop Para cada um dos 3.000 alunos
-        Job->>Pag: gera boleto
-        Pag-->>Job: ok
-        Job->>NFSe: emite nota fiscal (NFS-e)
-        NFSe-->>Job: nota emitida (PDF)
-        Job->>Site: publica notificação
-        Site-->>Job: ok
-        Job->>App: envia push
-        App-->>Job: ok
-        Job->>WA: envia mensagem
-        Note over Job,WA: se o WhatsApp demorar,<br/>TUDO nesse aluno espera
-        WA-->>Job: ok (ou timeout)
-        Job->>TG: envia mensagem
-        TG-->>Job: ok
+        J->>J: calcula a mensalidade (matérias, dependências, taxas)
+        J->>B: registra o boleto
+        B-->>J: ok
+        J->>X: cria a cobrança PIX
+        X-->>J: QR Code
+        J->>C: cria o link de cartão
+        C-->>J: ok
+        J->>P: envia a nota (RPS)
+        P-->>J: protocolo
+        loop até a prefeitura responder
+            J->>P: consulta o protocolo
+        end
+        Note over J,P: prefeitura lenta ou fora do ar:<br/>o job inteiro fica esperando (P2)
+        P-->>J: nota emitida
+        J->>N: envia os avisos
+        N-->>J: ok
     end
+    Note over J: 3.000 alunos × cerca de 20 s ≈ 16h40 (P1)
 ```
 
-## Problemas que essa arquitetura expõe
+## 3. Visão do dia a dia (P3 e P4)
 
-- **Cadeia bloqueante**: 6 chamadas síncronas em sequência, por aluno, multiplicadas por 3.000.
-- **Acoplamento forte**: o job de faturamento (legado) precisa conhecer a API de todo mundo. Adicionar um canal novo significa mexer no código legado.
-- **Sem isolamento de falha**: se o WhatsApp cai, os alunos que ainda não foram processados ficam sem NADA (nem site, nem app, nem Telegram), porque a cadeia trava.
-- **Janela de tempo em risco**: o job precisa terminar antes de um horário (ex.: antes das 6h). Qualquer lentidão externa ameaça essa janela.
+**P3 — PIX pago, sistema "em aberto"**
 
-_Status: rascunho v1, gerado em colaboração com o Claude em 2026-09-26 — ajustar números/labels à vontade._
+```mermaid
+sequenceDiagram
+    participant A as Aluno
+    participant X as PSP / Banco
+    participant K as Job de conciliação
+    participant L as Legado (banco de dados)
+    participant V as Portal / App / Chatbot
+
+    A->>X: paga o PIX às 10h02
+    Note over X,K: o banco sabe na hora,<br/>mas o legado só descobre no próximo lote
+    V->>L: consulta a situação
+    L-->>V: em aberto (P3)
+    K->>X: consulta os pagamentos (a cada poucas horas)
+    X-->>K: pagamentos confirmados
+    K->>L: dá baixa
+```
+
+**P4 — ajuste manual que não se espalha**
+
+```mermaid
+sequenceDiagram
+    participant S as Secretaria
+    participant L as Legado
+    participant B as Banco (boleto)
+    participant P as Prefeitura (nota)
+    participant V as App / Chatbot
+
+    S->>L: tranca a matéria depois do fechamento
+    L->>L: recalcula o valor
+    Note over L,P: nada avisa o boleto, a nota nem os canais (P4)
+    B-->>V: boleto segue com o valor antigo
+    P-->>V: nota segue com o valor antigo
+    Note over S,V: alguém precisa cancelar e reemitir na mão
+```
+
+## Premissas do case (ajuste conforme a realidade que você viu)
+- Cobrança e nota fiscal por aluno, todo mês.
+- Cerca de 20 s por aluno somando todas as chamadas externas (boleto, PIX, cartão,
+  prefeitura, avisos) — número fictício, serve pra conta do P1.
+- A conciliação de pagamentos roda em lote, a cada poucas horas, a partir do
+  retorno do banco e da consulta ao PSP.
+- O portal lê direto do banco do legado; app e chatbot consultam o portal.
+- Ajuste manual da secretaria não dispara nenhuma ação automática nos terceiros.
