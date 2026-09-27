@@ -1,4 +1,4 @@
-# Arquitetura atual (síncrona) — Colégio Leal
+# Arquitetura atual (síncrona) — Faculdade Leal
 
 Contexto: 3.000 alunos matriculados, mensalidade vencendo todo dia 5.
 
@@ -6,14 +6,14 @@ Contexto: 3.000 alunos matriculados, mensalidade vencendo todo dia 5.
 
 ```mermaid
 flowchart LR
-    subgraph Legado["Sistema de Gestão Escolar (legado)"]
+    subgraph Legado["Sistema Acadêmico e Financeiro (legado)"]
         Job["Job de Faturamento<br/>(processa aluno por aluno, em sequência)"]
     end
 
     Job -->|"1 síncrono"| Pag[Gateway de Pagamento]
     Job -->|"2 síncrono"| NFSe[Prefeitura: emissão de NFS-e]
     Job -->|"3 síncrono"| Site[Portal do Site]
-    Job -->|"4 síncrono"| App[App do Colégio]
+    Job -->|"4 síncrono"| App[App da Faculdade]
     Job -->|"5 síncrono"| WA[WhatsApp Business API]
     Job -->|"6 síncrono"| TG[Telegram Bot API]
 

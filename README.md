@@ -1,6 +1,6 @@
-# Colégio Leal — case de arquitetura orientada a eventos
+# Faculdade Leal — case de arquitetura orientada a eventos
 
-Case fictício, construído em público, sobre como uma rede de escolas resolve o
+Case fictício, construído em público, sobre como uma faculdade resolve o
 problema de faturar a mensalidade de milhares de alunos sem travar o sistema
 inteiro toda vez que uma área terceira demora a responder.
 
@@ -10,8 +10,8 @@ Stack: Apache Camel, Kafka (self-hosted, via Docker), MongoDB, banco relacional.
 
 | Repositório | Papel |
 |---|---|
-| [`colegio-leal`](.) | Este repo: visão geral, diagramas |
-| [`legado-colegio-leal`](https://github.com/lealnetosena/legado-colegio-leal) | Sistema legado (matrícula, mensalidade, monolito + relacional) |
+| [`faculdade-leal`](.) | Este repo: visão geral, diagramas |
+| [`legado-faculdade-leal`](https://github.com/lealnetosena/legado-faculdade-leal) | Sistema legado (matrícula, mensalidade por matérias/dependências/taxas de serviço, monolito + relacional) |
 | [`consumer-fiscal-pdf`](https://github.com/lealnetosena/consumer-fiscal-pdf) | Emite a NFS-e mensal (prefeitura, mocada) e gera o PDF da nota |
 | [`consumer-notif-site`](https://github.com/lealnetosena/consumer-notif-site) | Notificação: portal do site |
 | [`consumer-notif-app`](https://github.com/lealnetosena/consumer-notif-app) | Notificação: push no app |
