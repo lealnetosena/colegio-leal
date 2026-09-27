@@ -1,53 +1,63 @@
 # Arquitetura atual — componentes técnicos
 
-> Recriado após o reset de 27/09. Reflete só o que foi validado nesta rodada:
-> P1 (processamento em lote) e P2 (leitura sob demanda), mesma causa raiz —
-> a tabela. **Correção importante (27/09): não são a mesma procedure.** São
-> duas procedures diferentes, que fazem coisas diferentes, e só têm em comum
-> baterem na mesma tabela.
+> Atualizado em 27/09 com o desenho do usuário: nomes reais de tabela e
+> procedure, escopo fechado em **boleto** (PIX fica pra depois), e o detalhe
+> de que a emissão da NFS-e roda **na mesma chamada** da geração do boleto —
+> se o governo cai, o boleto cai junto.
 
 ```mermaid
 flowchart LR
-    JOB["Job de Faturamento<br/>(batch, agendado)"] --> PCALC["Procedure de Cálculo<br/>(mensalidade, linha a linha)"]
-    SITE["Site<br/>aluno pede o boleto"] --> APP["Aplicação legada"] --> PFIN["Procedure de Finalização<br/>do Boleto/PIX"]
-    PCALC <-->|"lê / escreve"| TAB[("Tabela de Faturas<br/>· sem expurgo, grande ·")]
-    PFIN <-->|"lê / escreve"| TAB
-    PFIN --> DOC["Boleto / PIX gerado"]
+    JOB["Job Scheduler"] --> LEG["Sistema Acadêmico Legado"]
+    SITE["Site<br/>· Action User ·"] -->|"1.3"| LEG
+    LEG -->|"1.2"| TBL[("TbLancamentos")]
+    TBL -->|"Procedure:<br/>CalculaFatura"| TBF[("TbFatura")]
+    TBF -->|"1.4 · Procedure:<br/>GeraFaturaFinal ·"| LEG
+    LEG -->|"1.4 também aciona,<br/>na mesma chamada"| NFE["Webservice NFS-e<br/>(governo)"]
+    NFE -->|"fora do ar"| ERRO["Erro retornado ao Site<br/>(boleto também falha)"]
+    LEG --> BOL["Boleto gerado"]
 
     P1{{"P1 · ~4 dias"}}
-    P2{{"P2 · quebra com carga"}}
+    P2{{"P2 · quebra com carga,<br/>e falha se a NFS-e cair"}}
     P1 -.-> JOB
     P2 -.-> SITE
 
     classDef prob fill:#ffe3e3,stroke:#d33,color:#900
     class P1,P2 prob
     classDef bad fill:#fff3d6,stroke:#c90,color:#630
-    class PCALC,PFIN,TAB bad
+    class TBL,TBF,NFE bad
 ```
 
 ## Componentes
 
-| Componente | Papel | Problema que causa/sofre |
+| Componente | Papel | Problema |
 |---|---|---|
-| **Job de Faturamento** | Batch agendado, dispara o processamento de todas as faturas do ciclo | Gera o **P1** — demora ~4 dias |
-| **Site** | Onde o aluno pede o boleto | Sofre o **P2** — trava com muito acesso |
-| **Aplicação legada** | Recebe o pedido do site, aciona a procedure de finalização | — |
-| **Procedure de Cálculo** (destacado) | Calcula a mensalidade (matérias, dependências, taxas), linha a linha (RBAR). Chamada só pelo Job, uma vez por ciclo | Raiz técnica do **P1b** |
-| **Procedure de Finalização do Boleto/PIX** (destacado) | Monta o boleto/PIX a partir do que já foi calculado. Chamada pelo Site, uma vez por pedido do aluno | Raiz técnica do **P2** |
-| **Tabela de Faturas** (destacado) | Tabela principal, sem processo de expurgo, cresceu muito — usada pelas **duas** procedures | Raiz técnica do **P1a** e agravante do **P2** |
-| **Boleto/PIX gerado** | Resultado devolvido ao aluno | — |
+| **Job Scheduler** | Dispara o processamento em lote | Gera o **P1** |
+| **Site** (Action User) | Aluno pede o boleto | Sofre o **P2** |
+| **Sistema Acadêmico Legado** | Orquestra as duas procedures | — |
+| **TbLancamentos** (destacado) | Lançamentos que originam a fatura — lida pela `CalculaFatura`, linha a linha (RBAR) | Candidata a causa do **P1a** — **a confirmar com o usuário se também está sem expurgo** |
+| **Procedure CalculaFatura** | `TbLancamentos → TbFatura`. Roda 1x por ciclo, batch | Causa técnica do **P1b** |
+| **TbFatura** (destacado) | Onde a fatura calculada fica. **Escrita** pela CalculaFatura, **lida** pela GeraFaturaFinal — é o recurso compartilhado entre as duas procedures | **P1a** e agravante do **P2** |
+| **Procedure GeraFaturaFinal** | Lê `TbFatura`, gera o boleto, e **na mesma chamada** aciona a emissão da NFS-e | Causa técnica do **P2** |
+| **Webservice NFS-e (governo)** (destacado) | Terceiro fora do controle da faculdade | Se cair, derruba a geração do boleto junto — acoplamento forte dentro da mesma chamada |
 
 ## A leitura central deste diagrama
 
-**Job** e **Site** disparam **procedures diferentes**, com propósitos
-diferentes: uma calcula a mensalidade, a outra finaliza o documento de
-cobrança. O que as duas têm em comum é baterem na **mesma tabela**, sem
-expurgo. É por isso que P1 e P2, apesar de serem sentidos de formas
-diferentes (um é lento uma vez por ciclo, o outro trava sob concorrência),
-compartilham a mesma causa técnica de fundo — a tabela, não a procedure.
+**TbFatura é o ponto de contato exato** entre as duas procedures: uma
+escreve nele (`CalculaFatura`, 1x por ciclo), a outra lê dele
+(`GeraFaturaFinal`, 1x por clique). É por isso que P1 e P2 compartilham a
+mesma causa técnica — a tabela — mesmo sendo problemas sentidos de formas
+diferentes.
 
-A arquitetura proposta (6 movimentos, já validada em conversa) ataca as três
-caixas destacadas: a Procedure de Cálculo vira processamento paralelo fora do
-laço serial (Competing Consumers), a Procedure de Finalização passa a rodar
-uma vez por evento em vez de uma vez por clique, e a Tabela ganha
-particionamento/expurgo em paralelo, fora do escopo de EDA.
+**A descoberta nova**: `GeraFaturaFinal` não só lê a tabela, ela também
+chama a emissão da NFS-e **na mesma execução síncrona**. Isso significa que
+o boleto — que em si não depende do governo — só é gerado se o webservice da
+prefeitura também responder. É um segundo tipo de acoplamento, além da
+tabela: dois passos que não deveriam depender um do outro, amarrados na
+mesma chamada.
+
+## Pendências abertas
+
+- **TbLancamentos também está sem expurgo, ou o volume grande está só em
+  TbFatura?** Muda onde exatamente a P1a mora.
+- Escopo fechado em **boleto** por enquanto — PIX e cartão ficam de fora
+  deste diagrama até serem retomados.
