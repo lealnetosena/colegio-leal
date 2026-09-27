@@ -12,7 +12,7 @@ Stack: Apache Camel, Kafka (self-hosted, via Docker), MongoDB, banco relacional.
 |---|---|
 | [`colegio-leal`](.) | Este repo: visão geral, diagramas |
 | [`legado-colegio-leal`](https://github.com/lealnetosena/legado-colegio-leal) | Sistema legado (matrícula, mensalidade, monolito + relacional) |
-| [`consumer-fiscal-pdf`](https://github.com/lealnetosena/consumer-fiscal-pdf) | Gera o comprovante em PDF para declaração de IR |
+| [`consumer-fiscal-pdf`](https://github.com/lealnetosena/consumer-fiscal-pdf) | Emite a NFS-e mensal (prefeitura, mocada) e gera o PDF da nota |
 | [`consumer-notif-site`](https://github.com/lealnetosena/consumer-notif-site) | Notificação: portal do site |
 | [`consumer-notif-app`](https://github.com/lealnetosena/consumer-notif-app) | Notificação: push no app |
 | [`consumer-notif-whatsapp`](https://github.com/lealnetosena/consumer-notif-whatsapp) | Notificação: bot de WhatsApp |

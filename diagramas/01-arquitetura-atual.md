@@ -11,7 +11,7 @@ flowchart LR
     end
 
     Job -->|"1 síncrono"| Pag[Gateway de Pagamento]
-    Job -->|"2 síncrono"| PDF[Gerador de PDF Fiscal]
+    Job -->|"2 síncrono"| NFSe[Prefeitura: emissão de NFS-e]
     Job -->|"3 síncrono"| Site[Portal do Site]
     Job -->|"4 síncrono"| App[App do Colégio]
     Job -->|"5 síncrono"| WA[WhatsApp Business API]
@@ -26,7 +26,7 @@ flowchart LR
 sequenceDiagram
     participant Job as Job de Faturamento
     participant Pag as Gateway de Pagamento
-    participant PDF as Gerador de PDF
+    participant NFSe as Prefeitura (NFS-e)
     participant Site as Site
     participant App as App
     participant WA as WhatsApp
@@ -35,8 +35,8 @@ sequenceDiagram
     loop Para cada um dos 3.000 alunos
         Job->>Pag: gera boleto
         Pag-->>Job: ok
-        Job->>PDF: gera comprovante
-        PDF-->>Job: ok
+        Job->>NFSe: emite nota fiscal (NFS-e)
+        NFSe-->>Job: nota emitida (PDF)
         Job->>Site: publica notificação
         Site-->>Job: ok
         Job->>App: envia push
